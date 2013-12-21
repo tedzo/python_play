@@ -51,11 +51,23 @@ def find_good_pairing(return_num_tries=False):
     while (True):
 	p = pairing(namelist)
 	num_tries +=1
-	# print "Trying pairing", show_pairing(p)
 	if pairing_good(p):
-	    print ("Took %d tries to get a good pairing." % num_tries)
+	    # print ("Took %d tries to get a good pairing." % num_tries)
 	    if return_num_tries:
 		return (p, num_tries)
 	    else:
 		return p
-	# time.sleep(1)
+
+def print_list(list, indent):
+    print " " * indent,
+    for element in list:
+	print element,
+    print
+
+if __name__ == "__main__":
+    print "Exchange participants:"
+    print_list(namelist, 4)
+
+    print "Here is the exchange:"
+    pairing = find_good_pairing()
+    show_pairing(pairing)
