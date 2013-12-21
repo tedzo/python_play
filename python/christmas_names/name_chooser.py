@@ -5,69 +5,87 @@
 import random
 import time
 
-family_list = [["Alia", "Tanya"],
-	       ["Nick", "Ariana", "Max"],
-	       ["Paige", "Ian", "Kendra"]
-	      ]
+# The main class for a gift exchange
+class GiftExchange(object):
+    def __init__(self):
+        print "Initializing new GiftExchange."
+        self.namelist = []
+        self.family_list = []
+        self.family_dict = {}
+        self.num_families = 0
+        self.pairing = None
+        self.tries = 0
 
-# Given a family_list, create 2 new data structures:
-#   1) Just a raw list of all the names
-#   2) A dictionary mapping from a name to a family identifier
-family_dict = {}
-namelist = []
+    def show(self):
+        print "Exchange participants:"
+        print "    %s" % ", ".join(self.namelist)
 
-family_id = 0
-for family in family_list:
-    for name in family:
-	family_dict[name] = family_id
-	namelist.append(name)
-    family_id += 1
+        print "Families (%d):" % self.num_families
+        for (index,f) in enumerate(self.family_list):
+            print "  %d: %s" % (index, ", ".join(f))
 
-# Create a random pairing (really just a permutation of the input list).
-# This is returned as a list of pairs of names.
-def pairing(input):
-    leftlist = list(input)
-    rightlist = list(input)
+        print "Here is the exchange:"
+        self.show_pairing()
+        print "Pairing took %d tries." % self.tries
 
-    random.shuffle(rightlist)
-    return zip(leftlist, rightlist)
+    def add_family(self, family):
+        # Do a bit of sanity checking on the input before adding the family.
+        if len(family) == 0:
+            # throw exception
+            print "Ignoring empty family input list."
+            return
+        for name in family:
+            if name in self.namelist:
+                # throw exception
+                print "Ignoring new family with duplicate name: %s." % name
+        self.family_list.append(family)
+        for name in family:
+            self.namelist.append(name)
+            self.family_dict[name] = self.num_families
+        self.num_families += 1
 
-# Print a pairing nicely.
-def show_pairing(pairing):
-    for p in pairing:
-	print "%8s gives to %s." % p
+    # Create random pairings (just permutations of the name list), until one of them
+    # meets the necessary criteria.
+    # Current criteria are:
+    #    - No one gives to a family member
+    #    - No one gives to herself.  (Which is taken care of by the above.)
+    def generate_pairing(self):
+        def is_good(pairing):
+            for (giver, recipient) in pairing:
+                if self.family_dict[giver] == self.family_dict[recipient]:
+                    return False
+            return(True)
+        def gen_random_pairing(giver_list):
+            # Copy the list, randomize (permute) the copy, and make the pairs.
+            recipient_list = list(giver_list)
+            random.shuffle(recipient_list)
+            return zip(giver_list, recipient_list)
 
-# Apply the constraints to a pairing.  If it meets the constraints,
-# return True; otherwise, return False.
-def pairing_good(pairing):
-    for p in pairing:
-	if p[0] == p[1]: return False
-	if family_dict[p[0]] == family_dict[p[1]]: return False
-    return(True)
+        tries = 0
+        pairing = gen_random_pairing(self.namelist)
+        while not is_good(pairing):
+            pairing = gen_random_pairing(self.namelist)
+            tries += 1
 
-# Keep creating pairings until we find a good one.
-def find_good_pairing(return_num_tries=False):
-    num_tries = 0
-    while (True):
-	p = pairing(namelist)
-	num_tries +=1
-	if pairing_good(p):
-	    # print ("Took %d tries to get a good pairing." % num_tries)
-	    if return_num_tries:
-		return (p, num_tries)
-	    else:
-		return p
+        self.pairing = pairing
+        self.tries = tries
 
-def print_list(list, indent):
-    print " " * indent,
-    for element in list:
-	print element,
-    print
+    # Print a pairing nicely.
+    def show_pairing(self):
+        if self.pairing == None:
+            print "%8s" % "None"
+            return
+        for p in self.pairing:
+            print "%8s gives to %s." % p
 
 if __name__ == "__main__":
-    print "Exchange participants:"
-    print_list(namelist, 4)
-
-    print "Here is the exchange:"
-    pairing = find_good_pairing()
-    show_pairing(pairing)
+    # Edit this list to set the participants in the exchange.
+    family_list = [["Alia", "Tanya"],
+		   ["Nick", "Ariana", "Max"],
+		   ["Paige", "Ian", "Kendra"]
+		  ]
+    ge = GiftExchange()
+    for f in family_list:
+        ge.add_family(f)
+    ge.generate_pairing()
+    ge.show()
