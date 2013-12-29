@@ -24,9 +24,10 @@ class GiftExchange(object):
         for (index,f) in enumerate(self.family_list):
             print "  %d: %s" % (index, ", ".join(f))
 
-        print "Here is the exchange:"
-        self.show_pairing()
-        print "Pairing took %d tries." % self.tries
+	if self.pairing:
+	    print "Here is the exchange:"
+	    self.show_pairing()
+	    print "Pairing took %d tries." % self.tries
 
     def add_family(self, family):
         # Do a bit of sanity checking on the input before adding the family.
@@ -38,6 +39,7 @@ class GiftExchange(object):
             if name in self.namelist:
                 # throw exception
                 print "Ignoring new family with duplicate name: %s." % name
+		return
         self.family_list.append(family)
         for name in family:
             self.namelist.append(name)
@@ -87,5 +89,6 @@ if __name__ == "__main__":
     ge = GiftExchange()
     for f in family_list:
         ge.add_family(f)
+    ge.show()
     ge.generate_pairing()
     ge.show()
