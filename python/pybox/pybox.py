@@ -97,7 +97,10 @@ def runit(args):
 
     command = command_list.get(name)
     if not command:
-        print >> sys.stderr, "pybox: unknown command: %s" % name
+        print >> sys.stderr, "pybox: unknown command: '%s'" % name
+        print >> sys.stderr, "Available commands:"
+	for command in sorted(command_list.list):
+            print >> sys.stderr, "    " + command
         return 1
     return command(name, args)
 
