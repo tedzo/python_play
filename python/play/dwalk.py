@@ -55,3 +55,7 @@ def dwalk(path, header='', top=True):
     for d in sorted(dirs):
         print header+'|'
         dwalk(os.path.join(path,d), header, top=False)
+
+if __name__ == '__main__':
+    for topdir in sys.argv[1:]:
+        dwalk(topdir)
