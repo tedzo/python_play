@@ -30,6 +30,8 @@
 
 import os
 import sys
+import glob
+import fnmatch
 
 def dwalk(path, header='', top=True):
     if top:
@@ -55,6 +57,14 @@ def dwalk(path, header='', top=True):
     for d in sorted(dirs):
         print header+'|'
         dwalk(os.path.join(path,d), header, top=False)
+
+def find(path, match):
+    for dirpath, dirs, files in os.walk(path):
+        # for f in dirs + files:
+        for f in files:
+            # print 'Checking {}'.format(os.path.join(dirpath, f))
+            if fnmatch.fnmatch(f, match):
+                print os.path.join(dirpath, f)
 
 if __name__ == '__main__':
     for topdir in sys.argv[1:]:
