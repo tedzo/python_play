@@ -3,9 +3,10 @@
 # vim: set ai sw=4 sm:
 
 import curses
-import time
+from time import sleep
 from os import system
 import sys
+import argparse
 
 def c_init():
     stdscr = curses.initscr()
@@ -259,6 +260,109 @@ CH_UNKNOWN = 0
 CH_EMPTY   = 1
 CH_FULL    = 2
 
+class CharBlock(object):
+    """Class to hold all the possible combinations of neighbor values for a
+    given location, and map them to a specific output value for the location."""
+
+    pass
+
+class Snake(object):
+    """Class to play a snake game in a text window."""
+    Right = (0,1)
+    Left  = (0,-1)
+    Down  = (1, 0)
+    Up    = (-1, 0)
+    Head_ch = '@'
+    Body_ch = 'o'
+    Directions = {curses.KEY_LEFT:(0, -1),
+		  ord('h'):(0,-1),
+		  curses.KEY_RIGHT:(0,1),
+		  ord('l'):(0,1),
+		  curses.KEY_UP:(-1,0),
+		  ord('k'):(-1,0),
+		  curses.KEY_DOWN:(1,0),
+		  ord('j'):(1,0)}
+
+    def __init__(self, win=None):
+	self.move_time = 0.35
+	self.win = win
+	self.location = (1,1)	# Start in upper left corner
+	self.direction = Snake.Right   # Start moving right
+	self.round = 1
+	self.add_every = 5
+	self.speedup = 10
+
+    def draw(self):
+	if self.win:
+	    self.win.border(0)
+
+    @staticmethod
+    def calc_move(old, delta):
+	return (old[0]+delta[0], old[1]+delta[1])
+
+    def move(self, grow=False):
+	old_head = self.head
+	new_head = Snake.calc_move(old_head, self.direction)
+	win = self.win
+	inch = win.inch(*new_head)
+	if inch != ord(' '):
+	    self.done = True
+	    # raise ValueError('head ran into {:x}'.format(inch))
+
+	self.head = new_head
+	self.snake.insert(0,new_head)
+	win.addch(new_head[0], new_head[1], Snake.Head_ch)
+	win.addch(old_head[0], old_head[1], Snake.Body_ch)
+	if not grow:
+	    # Get tail position
+	    y,x = self.snake[-1]
+	    win.addch(y, x, ' ')
+	    self.snake.pop()
+	    win.move(*self.head)
+
+    def handle_input(self, ch):
+	if ch == ord('q') or ch == ord('Q'):
+	    self.done = True
+	elif ch == ord(' '):
+	    self.pause = not self.pause
+	elif ch in Snake.Directions:
+	    self.direction = Snake.Directions[ch]
+
+    def play(self):
+	self.snake = [self.location]
+	self.head = self.location
+	self.tail = self.location
+	self.done = False
+	self.pause = False
+
+	self.win.nodelay(True)
+	self.win.move(*self.location)
+	self.win.addch(Snake.Head_ch)
+
+	while True:
+	    while True:
+		ch = self.win.getch()
+		if ch == -1:
+		    # No input available
+		    break
+		self.handle_input(ch)
+	    if self.done:
+		break
+	    if self.pause:
+		continue
+	    if self.add_every != 0 and self.round % self.add_every == 0:
+		self.move(True)
+	    else:
+		self.move(False)
+	    if self.speedup != 0 and self.round % self.speedup == 0:
+		self.move_time *= 0.9
+
+	    self.round += 1
+	    self.win.move(*self.location)
+	    self.win.refresh()
+
+	    sleep(0.1 + self.move_time)
+
 class Maze(object):
     outch = '? #'
 
@@ -304,6 +408,53 @@ class Maze(object):
         self.win.move(*self.cursor)
         self.win.refresh()
 
+    def display2(self):
+        if not self.win:
+            return
+        assert(len(self.grid) == self.ysize and len(self.grid[0]) == self.xsize)
+
+	def calc_ch(y, x):
+	    if y == 0:
+		# Top row
+		if x == 0:
+		    # Left column
+		    pass
+		elif x == self.xsize - 1:
+		    # Right column
+		    pass
+		else:
+		    # Middle column
+		    pass
+	    elif y == self.ysize - 1:
+		# Bottom row
+		if x == 0:
+		    # Left column
+		    pass
+		elif x == self.xsize - 1:
+		    # Right column
+		    pass
+		else:
+		    # Middle column
+		    pass
+	    else:
+		# Middle row
+		if x == 0:
+		    # Left column
+		    pass
+		elif x == self.xsize - 1:
+		    # Right column
+		    pass
+		else:
+		    # Middle column
+		    pass
+
+        for row in range(len(self.grid)):
+            self.win.move(row, 0)
+            for col in range(len(self.grid[row])):
+                taddch(self.win, self.outch[self.grid[row][col]])
+        self.win.move(*self.cursor)
+        self.win.refresh()
+
     def dispkey(self, ch):
         assert(0 < ch < 1000)
         assert(self.xsize > 5)
@@ -311,7 +462,7 @@ class Maze(object):
         self.win.addstr('{:3}'.format(ch))
         self.win.refresh()
 
-    def build(self, ingress):
+    def build(self, ingress, display_keys=False):
         moves = {curses.KEY_LEFT:(0, -1), curses.KEY_RIGHT:(0,1),
                  curses.KEY_UP:(-1,0), curses.KEY_DOWN:(1,0)}
         assert(len(ingress) == 2)
@@ -328,10 +479,11 @@ class Maze(object):
         self.display()
         ch = self.win.getch()
         while (ch != ord('q') and ch != ord('Q')):
-	    # Uncomment these 2 lines to show the ordinal value of each inpu
-	    # character in the upper right corner of the window for 1/2 second.
-	    # self.dispkey(ch)
-	    # time.sleep(0.5)
+	    # these 2 lines show the ordinal value of each input character
+	    # in the upper right corner of the window for 1/2 second.
+	    if display_keys:
+		self.dispkey(ch)
+		sleep(0.5)
             if ch in moves:
                 # raise(ValueError)
                 self.move(moves[ch])
@@ -364,14 +516,9 @@ def do_maze(draw_base=True, pause_each=False, early_exit=False):
     maze = Maze(win1)
     # maze.initgrid(CH_FULL)
     # maze.display()
-    maze.build((2,0))
+    maze.build((2,0), display_keys=False)
     # window.getch()
 
-    # do_stuff(sub1, border, show_size, draw_walls)
-    # do_stuff(clear, border, show_size, phello)
-    # do_stuff(show_size)
-    # do_stuff(phello)
-    # first_ui()
     c_cleanup(window)
     print 'maze is {}x{}.'.format(maze.ysize, maze.xsize)
     print 'win1 is {}x{}.'.format(*win1.getmaxyx())
@@ -380,7 +527,7 @@ def do_tunnel():
     window = c_init()
     window.erase()
     window.refresh()
-    time.sleep(1)
+    sleep(1)
     maketunnel(window)
     c_cleanup(window)
 
@@ -388,6 +535,36 @@ def do_cleanup():
     window = c_init()
     c_cleanup(window)
 
+def do_some_stuff():
+    window = c_init()
+    do_stuff(window, border, show_size)
+    sub1 = window.derwin(20,40, 5, 5)
+    do_stuff(sub1, border, show_size, draw_walls)
+    do_stuff(sub1, phello)
+    inch = sub1.inch(1,1)
+    # first_ui()
+    c_cleanup(window)
+    print "Char at (1,1) is: '{}'".format(inch)
+
+def do_snake():
+    window = c_init()
+    screen_size = window.getmaxyx()
+    s = Snake(window)
+    s.draw()
+    window.getch()
+    s.play()
+    c_cleanup(window)
+    print screen_size
+
 if __name__ == '__main__':
-    do_maze()
-    # do_tunnel()
+    command_list = {'maze':do_maze,
+		    'tunnel':do_tunnel,
+		    'stuff': do_some_stuff,
+		    'cleanup': do_cleanup,
+		    'snake': do_snake}
+    p = argparse.ArgumentParser(description='Some curses programs')
+    p.add_argument('command', choices=command_list, nargs='?', default='maze')
+    args = p.parse_args()
+    # print 'Command is: {}'.format(args.command)
+    command = command_list[args.command]
+    command()
