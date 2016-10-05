@@ -27,7 +27,7 @@ ROLES = {'target': {'answer': 'No', 'article':'a'},
 
 PLAYERS = 'Doug, Pat, Paul, Brandon, Bin, Huong, Matt, Fred, Alex, Ashish, Scott, Bryan'
 
-def make_msg(from_addr, to, role, target=None):
+def make_email(from_addr, to, role, target=None):
     assert role in ROLES
 
     msg = MIMEMultipart()
@@ -39,13 +39,31 @@ def make_msg(from_addr, to, role, target=None):
     msg['Subject'] = 'Are you an assassin?'
     msg.add_header('Reply-to', REPLY_ADDR)
 
+    # Compose the real body of the message.
     body = '{}; you are {} {}.'.format(ROLES[role]['answer'], ROLES[role]['article'], role)
     if role == 'assassin':
         body += '  Your target is {}.'.format(target)
 
+    # Make up a few lines of random glop so the real message doesn't show
+    # up in someone's gmail inbox overview which might be seen by someone glancing
+    # at her monitor.
+    def fluff_lines(num_lines):
+        return '\n'.join('=*+-#' * 10 for x in range(num_lines))
+
+    # Put it together to generate the final message body.
+    body = fluff_lines(3) + '\n\n' + body + '\n\n' + fluff_lines(1)
+
     msg.attach(MIMEText(body, 'plain'))
 
     return msg
+
+def make_slack_msg(target_list, player_list):
+    msg = '\n'.join(["This week's assassins and targets are assigned, and emails have been sent.",
+                     'The roster is:',
+                     '*Targets*: "{}"',
+                     '*Players*: "{}"',
+                     '*GAME ON*'])
+    return msg.format(', '.join(targets), ', '.join(players))
 
 def commastring_to_list(string, capitalize=False):
     if capitalize:
@@ -57,16 +75,25 @@ def get_cred(username):
     password = getpass.getpass('Please enter password for {}: '.format(username))
     return (username, password)
 
-def sendit(cred, to, msg):
-    """Command to send a messsage.
-    Msg must contain 'From' and 'To" fields.
-    Note: for this to work in gmail, the account being used must have
-    enabled "less secure apps"."""
-
+def email_login(cred):
+    print 'Logging in to smtp.gmail.com as {}.'.format(cred[0])
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.starttls()
     server.login(*cred)
-    server.sendmail(msg['From'], to, msg.as_string())
+    return server
+
+def email_send(server, to, msg, dry_run=True):
+    if dry_run:
+        print 'Will send this email to {}:'.format(to)
+        print '====='
+        print msg.as_string()
+        print '====='
+        print
+    else:
+        server.sendmail(msg['From'], to, msg.as_string())
+
+def email_logout(server):
+    print 'Logging out of smtp.gmail.com.'
     server.quit()
 
 def send_results(ta_list, guards, dry_run=True):
@@ -83,40 +110,34 @@ def send_results(ta_list, guards, dry_run=True):
 
     for target, assassin in ta_list:
         to = EMAILS[target]
-        msg = make_msg(EMAIL_ACCOUNT, to, 'target')
+        msg = make_email(EMAIL_ACCOUNT, to, 'target')
         email_list.append((to, msg))
 
         to = EMAILS[assassin]
-        msg = make_msg(EMAIL_ACCOUNT, to, 'assassin', target)
+        msg = make_email(EMAIL_ACCOUNT, to, 'assassin', target)
         email_list.append((to, msg))
 
     for guard in guards:
         to = EMAILS[guard]
-        msg = make_msg(EMAIL_ACCOUNT, to, 'guard')
+        msg = make_email(EMAIL_ACCOUNT, to, 'guard')
         email_list.append((to, msg))
 
+    email_server = email_login(cred)
     for to, msg in email_list:
-        if dry_run:
-            print 'Will send this email to {}:'.format(to)
-            print '====='
-            print msg.as_string()
-            print '====='
-            print
-        else:
-            sendit(cred, to, msg)
+        email_send(email_server, to, msg, dry_run)
+    email_logout(email_server)
 
 def choose_assassins(targets, players):
-    """function which assigns assassins for each target.
-    Note: the input list "players" will have the chosen assassins
-    removed."""
+    """function which assigns assassins for each target."""
 
     ta_list = []
+    guards = players[:]
     for t in targets:
         # Choose an assassin for each target.
-        a = random.choice(players)
-        players.remove(a)
+        a = random.choice(guards)
+        guards.remove(a)
         ta_list.append((t, a))
-    return ta_list
+    return ta_list, guards
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -142,7 +163,10 @@ if __name__ == '__main__':
             pass
 
     # Choose an assassin for each target.
-    ta_list = choose_assassins(targets, players)
+    ta_list, guards = choose_assassins(targets, players)
 
-    # All the remaining players are guards.
-    send_results(ta_list, players, dry_run=args.dry_run)
+    # Send out the results.
+    send_results(ta_list, guards, dry_run=args.dry_run)
+
+    # Print a nice message to be posted in slack.
+    print make_slack_msg(targets, players)
