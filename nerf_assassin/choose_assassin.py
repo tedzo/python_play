@@ -80,6 +80,7 @@ def email_login(cred):
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.starttls()
     server.login(*cred)
+    print 'Login complete.'
     return server
 
 def email_send(server, to, msg, dry_run=True):
