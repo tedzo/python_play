@@ -142,11 +142,14 @@ def choose_assassins(targets, players):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('targets')
+    parser.add_argument('targets', nargs='?')
     parser.add_argument('-p', '--players', default=PLAYERS)
     parser.add_argument('-d', '--dry_run', action='store_true')
 
     args = parser.parse_args()
+
+    # print args
+    # sys.exit(0)
 
     # We need to know the email address of every player.
     players = commastring_to_list(args.players, capitalize=True)
@@ -155,7 +158,12 @@ if __name__ == '__main__':
 
     # The targets might or might not be in the list of players, but
     # either way, we must know their email addresses
-    targets = commastring_to_list(args.targets, capitalize=True)
+    if args.targets == None:
+        targets = (random.choice(players),)
+        print "targets are: {}".format(targets)
+    else:
+        targets = commastring_to_list(args.targets, capitalize=True)
+
     for t in targets:
         assert t in EMAILS, '{} is an invalid target.'.format(t)
         try:
