@@ -1,9 +1,19 @@
 #! /usr/bin/env python
 
+"""Choose assassin(s) and maybe targets for a nerf-assassin game.
+
+Arguments:
+    targets: Comma-separated list of targets.  If empty, targets will be
+             chosen at random.
+    -p players: list of players.
+    -d, --dry-run: don't actually send emails; just run the chooser.
+"""
+
+
 # vim: set ai sw=4 et:
 
-import os
-import sys
+# import os
+# import sys
 import random
 import argparse
 import getpass
@@ -27,15 +37,23 @@ ROLES = {'target': {'answer': 'No', 'article':'a'},
 
 PLAYERS = 'Doug, Pat, Paul, Brandon, Bin, Huong, Matt, Fred, Alex, Ashish, Scott, Bryan'
 
-def make_email(from_addr, to, role, target=None):
+def make_email(from_addr, recip, role, target=None):
+    """Compose a message to a nerf assassin player.
+
+    from_addr: The email address the message will be from.
+    recip: The email address of the recipient.
+    role: The player's role in the current game.
+    target: If a player is the assassin, this is the target.
+    """
+
     assert role in ROLES
 
     msg = MIMEMultipart()
     msg['From'] = from_addr
-    if type(to) == str:
-        msg['To'] = to
+    if isinstance(recip, str):
+        msg['To'] = recip
     else:
-        msg['To'] = ', '.join(to)
+        msg['To'] = ', '.join(recip)
     msg['Subject'] = 'Are you an assassin?'
     msg.add_header('Reply-to', REPLY_ADDR)
 
@@ -58,24 +76,28 @@ def make_email(from_addr, to, role, target=None):
     return msg
 
 def make_slack_msg(target_list, player_list):
+    """Emit a message suitable for posting to the assassing slack channel."""
     msg = '\n'.join(["This week's assassins and targets are assigned, and emails have been sent.",
                      'The roster is:',
                      '*Targets*: "{}"',
                      '*Players*: "{}"',
                      '*GAME ON*'])
-    return msg.format(', '.join(targets), ', '.join(players))
+    return msg.format(', '.join(target_list), ', '.join(player_list))
 
 def commastring_to_list(string, capitalize=False):
+    """Turn a comma separated list in a string to a python list."""
     if capitalize:
         return [item.strip().capitalize() for item in string.split(',')]
     else:
         return [item.strip() for item in string.split(',')]
 
 def get_cred(username):
+    """Get credentials (password) for a given username."""
     password = getpass.getpass('Please enter password for {}: '.format(username))
     return (username, password)
 
 def email_login(cred):
+    """Log into the gmail smtp server with the given credentials."""
     print 'Logging in to smtp.gmail.com as {}.'.format(cred[0])
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.starttls()
@@ -83,23 +105,29 @@ def email_login(cred):
     print 'Login complete.'
     return server
 
-def email_send(server, to, msg, dry_run=True):
+def email_send(server, recip, msg, dry_run=True):
+    """Send an email message.
+
+    If dry_run is true, just print the message which would have been sent.
+    """
     if dry_run:
-        print 'Will send this email to {}:'.format(to)
+        print 'Will send this email to {}:'.format(recip)
         print '====='
         print msg.as_string()
         print '====='
         print
     else:
-        server.sendmail(msg['From'], to, msg.as_string())
+        server.sendmail(msg['From'], recip, msg.as_string())
 
 def email_logout(server):
+    """Log out of an email session."""
     print 'Logging out of smtp.gmail.com.'
     server.quit()
 
 def send_results(ta_list, guards, dry_run=True):
-    for t, a in ta_list:
-        print '{} is {}\'s target.'.format(t, a)
+    """Once we've chosen roles for all players, send out the emails."""
+    for target, assassin in ta_list:
+        print '{} is {}\'s target.'.format(target, assassin)
     for guard in guards:
         print '{} is a guard.'.format(guard)
 
@@ -110,22 +138,22 @@ def send_results(ta_list, guards, dry_run=True):
     email_list = []
 
     for target, assassin in ta_list:
-        to = EMAILS[target]
-        msg = make_email(EMAIL_ACCOUNT, to, 'target')
-        email_list.append((to, msg))
+        recip = EMAILS[target]
+        msg = make_email(EMAIL_ACCOUNT, recip, 'target')
+        email_list.append((recip, msg))
 
-        to = EMAILS[assassin]
-        msg = make_email(EMAIL_ACCOUNT, to, 'assassin', target)
-        email_list.append((to, msg))
+        recip = EMAILS[assassin]
+        msg = make_email(EMAIL_ACCOUNT, recip, 'assassin', target)
+        email_list.append((recip, msg))
 
     for guard in guards:
-        to = EMAILS[guard]
-        msg = make_email(EMAIL_ACCOUNT, to, 'guard')
-        email_list.append((to, msg))
+        recip = EMAILS[guard]
+        msg = make_email(EMAIL_ACCOUNT, recip, 'guard')
+        email_list.append((recip, msg))
 
     email_server = email_login(cred)
-    for to, msg in email_list:
-        email_send(email_server, to, msg, dry_run)
+    for recip, msg in email_list:
+        email_send(email_server, recip, msg, dry_run)
     email_logout(email_server)
 
 def choose_assassins(targets, players):
@@ -133,11 +161,11 @@ def choose_assassins(targets, players):
 
     ta_list = []
     guards = players[:]
-    for t in targets:
+    for target in targets:
         # Choose an assassin for each target.
-        a = random.choice(guards)
-        guards.remove(a)
-        ta_list.append((t, a))
+        assassin = random.choice(guards)
+        guards.remove(assassin)
+        ta_list.append((target, assassin))
     return ta_list, guards
 
 if __name__ == '__main__':
@@ -164,10 +192,10 @@ if __name__ == '__main__':
     else:
         targets = commastring_to_list(args.targets, capitalize=True)
 
-    for t in targets:
-        assert t in EMAILS, '{} is an invalid target.'.format(t)
+    for target in targets:
+        assert target in EMAILS, '{} is an invalid target.'.format(target)
         try:
-            players.remove(t)
+            players.remove(target)
         except ValueError:
             pass
 
