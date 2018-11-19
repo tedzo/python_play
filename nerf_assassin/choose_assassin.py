@@ -18,8 +18,11 @@ import random
 import argparse
 import getpass
 import smtplib
+# I have no idea why pylint wants to complain about these imports.
+# pylint: disable=import-error,no-name-in-module
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
+# pylint: enable=import-error,no-name-in-module
 
 # Need a local module which defines the following symbols
 from emails import EMAILS, EMAIL_ACCOUNT, REPLY_ADDR
@@ -37,13 +40,13 @@ ROLES = {'target': {'answer': 'No', 'article':'a'},
 
 PLAYERS = 'Doug, Pat, Paul, Brandon, Bin, Huong, Matt, Fred, Alex, Ashish, Scott, Bryan'
 
-def make_email(from_addr, recip, role, target=None):
+def make_email(from_addr, recip, role, target_name=None):
     """Compose a message to a nerf assassin player.
 
     from_addr: The email address the message will be from.
     recip: The email address of the recipient.
     role: The player's role in the current game.
-    target: If a player is the assassin, this is the target.
+    target_name: If a player is the assassin, this is the target.
     """
 
     assert role in ROLES
@@ -60,12 +63,15 @@ def make_email(from_addr, recip, role, target=None):
     # Compose the real body of the message.
     body = '{}; you are {} {}.'.format(ROLES[role]['answer'], ROLES[role]['article'], role)
     if role == 'assassin':
-        body += '  Your target is {}.'.format(target)
+        body += '  Your target is {}.'.format(target_name)
 
-    # Make up a few lines of random glop so the real message doesn't show
-    # up in someone's gmail inbox overview which might be seen by someone glancing
-    # at her monitor.
     def fluff_lines(num_lines):
+        """Make up lines of random glop.
+
+        Intended to be used for obscuration so the real message doesn't show
+        up in someone's gmail inbox overview which might be seen by someone
+        glancing at her monitor.
+        """
         return '\n'.join('=*+-#' * 10 for x in range(num_lines))
 
     # Put it together to generate the final message body.
@@ -88,8 +94,7 @@ def commastring_to_list(string, capitalize=False):
     """Turn a comma separated list in a string to a python list."""
     if capitalize:
         return [item.strip().capitalize() for item in string.split(',')]
-    else:
-        return [item.strip() for item in string.split(',')]
+    return [item.strip() for item in string.split(',')]
 
 def get_cred(username):
     """Get credentials (password) for a given username."""
@@ -124,12 +129,12 @@ def email_logout(server):
     print 'Logging out of smtp.gmail.com.'
     server.quit()
 
-def send_results(ta_list, guards, dry_run=True):
+def send_results(ta_list, guard_list, dry_run=True):
     """Once we've chosen roles for all players, send out the emails."""
-    for target, assassin in ta_list:
-        print '{} is {}\'s target.'.format(target, assassin)
-    for guard in guards:
-        print '{} is a guard.'.format(guard)
+    for target_name, assassin_name in ta_list:
+        print '{} is {}\'s target.'.format(target_name, assassin_name)
+    for guard_name in guard_list:
+        print '{} is a guard.'.format(guard_name)
 
     cred = get_cred(EMAIL_ACCOUNT)
 
@@ -137,17 +142,17 @@ def send_results(ta_list, guards, dry_run=True):
     # Let's compose email messages, and send them.
     email_list = []
 
-    for target, assassin in ta_list:
-        recip = EMAILS[target]
+    for target_name, assassin_name in ta_list:
+        recip = EMAILS[target_name]
         msg = make_email(EMAIL_ACCOUNT, recip, 'target')
         email_list.append((recip, msg))
 
-        recip = EMAILS[assassin]
-        msg = make_email(EMAIL_ACCOUNT, recip, 'assassin', target)
+        recip = EMAILS[assassin_name]
+        msg = make_email(EMAIL_ACCOUNT, recip, 'assassin', target_name)
         email_list.append((recip, msg))
 
-    for guard in guards:
-        recip = EMAILS[guard]
+    for guard_name in guard_list:
+        recip = EMAILS[guard_name]
         msg = make_email(EMAIL_ACCOUNT, recip, 'guard')
         email_list.append((recip, msg))
 
@@ -156,19 +161,22 @@ def send_results(ta_list, guards, dry_run=True):
         email_send(email_server, recip, msg, dry_run)
     email_logout(email_server)
 
-def choose_assassins(targets, players):
+def choose_assassins(target_list, player_list):
     """function which assigns assassins for each target."""
 
     ta_list = []
-    guards = players[:]
-    for target in targets:
+    guard_list = player_list[:]
+    for target_name in target_list:
         # Choose an assassin for each target.
-        assassin = random.choice(guards)
-        guards.remove(assassin)
-        ta_list.append((target, assassin))
-    return ta_list, guards
+        assassin_name = random.choice(guard_list)
+        guard_list.remove(assassin_name)
+        ta_list.append((target_name, assassin_name))
+    return ta_list, guard_list
 
 if __name__ == '__main__':
+    # Stupid pylint wants a bunch of variables (including parser!) to be
+    #  named as constants.  That would be worse, not better.
+    # pylint: disable=invalid-name
     parser = argparse.ArgumentParser()
     parser.add_argument('targets', nargs='?')
     parser.add_argument('-p', '--players', default=PLAYERS)
@@ -186,7 +194,7 @@ if __name__ == '__main__':
 
     # The targets might or might not be in the list of players, but
     # either way, we must know their email addresses
-    if args.targets == None:
+    if args.targets is None:
         targets = (random.choice(players),)
         print "targets are: {}".format(targets)
     else:
@@ -200,10 +208,10 @@ if __name__ == '__main__':
             pass
 
     # Choose an assassin for each target.
-    ta_list, guards = choose_assassins(targets, players)
+    ta_pairs, guards = choose_assassins(targets, players)
 
     # Send out the results.
-    send_results(ta_list, guards, dry_run=args.dry_run)
+    send_results(ta_pairs, guards, dry_run=args.dry_run)
 
     # Print a nice message to be posted in slack.
     print make_slack_msg(targets, players)
