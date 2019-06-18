@@ -1,11 +1,33 @@
 #! /usr/bin/env python
+"""Program to process a word warp data file.
+
+This is primarly used as a stand-alone program which validates and helps
+debug a word warp (6-letter words) data file.  However, if the module is
+imported, it's functions are useable to perform the same tasks, or
+individual validation steps as desired.
+
+Functions:
+    line_parses(): Checks syntactic validity of a given line.
+    words_are_anagrams(): Checks that the words in a line are
+        anagrams of each other.
+    words_are_alphabetic(): Checks that the words in a line are
+        in alphabetic order.
+    line_is_good(): Checks that a line passes all the above checks.
+
+When invoked as a command-line program, there are 2 modes of operation:
+    Default, or when a list of files to process is specific:
+        Each line in the files is checked, as well as a check to make sure
+            the lines themselves are in alphabetical order.
+    When run interactively: the user is prompted for input and each line
+        is individually checked for validity via line_is_good().
+"""
 
 import sys
-import os
 import re
-import readline
+import readline  # Enables history/editing in raw_input() function.
 import argparse
 import fileinput
+import glob
 
 # Regular expressions for general use.
 WORD_RE = r'[A-Z][a-z]{5}'
@@ -77,18 +99,23 @@ def line_is_good(line, debug):
     return (True, 'All is well')
 
 def parse_args(args):
+    """Parse command line arguments to the program."""
     parser = argparse.ArgumentParser(description='Process word warp data file')
+    parser.add_argument('--test', '-t', action='store_true',
+                        help='Run unit tests')
+    parser.add_argument('--quit', action='store_true',
+                        help='Quit after processing arguments')
     parser.add_argument('--interactive', '-i', action='store_true',
-            help='Run interactively (line by line input)')
-    parser.add_argument('--files', '-f', nargs='+', default=['raw_input'])
+                        help='Run interactively (line by line input)')
+    parser.add_argument('--files', '-f', nargs='+', default=sorted(glob.glob('ww_data*')))
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Verbose: show each file processed.')
     parser.add_argument('--debug_program', '-D', action='store_true',
-            help='Program debug mode: dump argument namespace, regex matches.')
+                        help='Program debug mode: dump argument namespace, regex matches.')
     parser.add_argument('--debug_data', '-d', action='store_true',
-            help='Data debug mode: give hints about bad data.')
-    parser.add_argument('--count', '-c', type=int, default=0,
-            help='Maximum number of lines to process.')
-    # parser.add_argument()
-    # parser.add_argument()
+                        help='Data debug mode: give hints about bad data.')
+    parser.add_argument('--count', '-c', type=int, default=-1,
+                        help='Maximum number of lines per file to process.')
 
     return parser.parse_args(args)
 
@@ -98,20 +125,54 @@ def get_user_lines(prompt):
     A blank line of input terminates the generator.
     """
     while True:
-        line = raw_input('Please type a line -> ').rstrip('\n')
+        line = raw_input(prompt).rstrip('\n')
         if line == '':
             break
         yield line
 
+def process_files(args):
+    """Process lines in the files given on the command line."""
+
+    succeeded = True
+
+    for line in fileinput.input(args.files):
+        if fileinput.isfirstline():
+            last_good_line = ''
+            count = 0
+            if args.verbose:
+                print 'Processing "{}"'.format(fileinput.filename())
+        if count == args.count:
+            fileinput.nextfile()
+            continue
+        else:
+            count += 1
+
+        line = line.rstrip('\n')
+        line_good, reason = line_is_good(line, args.debug_program)
+        if not line_good:
+            succeeded = False
+            print 'Bad {}.{}({}): "{}"'.format(fileinput.filename(),
+                    fileinput.filelineno(), reason, line)
+        elif not line > last_good_line:
+            succeeded = False
+            print 'Bad {}.{}: "{}" after "{}"'.format(fileinput.filename(),
+                    fileinput.filelineno(), line, last_good_line)
+        else:
+            last_good_line = line
+    if succeeded:
+        return 0
+    return 1
+
 if __name__ == '__main__':
     args = parse_args(sys.argv[1:])
-    if args.debug_program:
+    if args.debug_program or args.quit:
         print args
+    if args.quit:
+        sys.exit(0)
 
-    # if args.interactive:
-    #     line_producer = get_user_lines('Please type a line -> '):
-    # else:
-    #     line_producer = fileinput.input(args.files):
+    if args.test:
+        from test_word_warp import main as test_main
+        sys.exit(test_main())
 
     if args.interactive:
         for line in get_user_lines('Please type a line -> '):
@@ -121,25 +182,4 @@ if __name__ == '__main__':
             else:
                 print 'Bad ({}): "{}"'.format(reason, line)
     else:
-        # with open(args.file) as file:
-        limit = False
-        if args.count != 0:
-            limit = True
-            count = args.count
-        last_good_line = ''
-        for line in fileinput.input(args.files):
-            if limit:
-                if count == 0:
-                    break
-                else:
-                    count -= 1
-            line = line.rstrip('\n')
-            line_good, reason = line_is_good(line, args.debug_program)
-            if not line_good:
-                print 'Bad {}.{}({}): "{}"'.format(fileinput.filename(),
-                        fileinput.lineno(), reason, line)
-            elif not line > last_good_line:
-                print 'Bad {}.{}: "{}" after "{}"'.format(fileinput.filename(),
-                        fileinput.lineno(), line, last_good_line)
-            else:
-                last_good_line = line
+        sys.exit(process_files(args))
