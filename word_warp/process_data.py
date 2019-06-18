@@ -136,6 +136,9 @@ def process_files(args):
     succeeded = True
 
     for line in fileinput.input(args.files):
+        line = line.rstrip('\n')
+
+        # At the beginning of each file, reset per file state.
         if fileinput.isfirstline():
             last_good_line = ''
             count = 0
@@ -147,7 +150,21 @@ def process_files(args):
         else:
             count += 1
 
-        line = line.rstrip('\n')
+        # Skip blank lines, comment lines and lines that say "Word warp".
+        SKIP_RE = r'^$|^#.*$|^[Ww]ord[  ]*[Ww]arp$'
+        if re.search(SKIP_RE, line):
+            if args.verbose: print 'Skipping "{}".'.format(line)
+            continue
+
+        # Quit processing a file after a line starting with 3 dashes or m-dashes.
+        # (Utf-8 encoding for an m-dash is \xe2\x80\x94)
+        END_RE = '^(-{3})|(\xe2\x80\x94){3}.*$'
+        if re.search(END_RE, line):
+            if args.verbose:
+                print 'Finishing at {}:"{}".'.format(fileinput.filelineno(), line)
+            fileinput.nextfile()
+            continue
+
         line_good, reason = line_is_good(line, args.debug_program)
         if not line_good:
             succeeded = False
