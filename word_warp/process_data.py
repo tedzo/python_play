@@ -88,15 +88,15 @@ def line_is_good(line, debug):
     - All the lines in the file should be sorted alphabetically.
     """
     if not line_parses(line, debug):
-        return (False, 'Did not parse.')
+        return (False, 0, 'Did not parse.')
     word_list = [word.lower() for word in line.split(', ')]
     if debug: print word_list
     if not words_are_anagrams(word_list, debug):
-        return (False, 'Not anagrams')
+        return (False, 0, 'Not anagrams')
     if not words_are_alphabetic(word_list, debug):
-        return (False, 'Not alphabetic')
+        return (False, 0, 'Not alphabetic')
 
-    return (True, 'All is well')
+    return (True, len(word_list), 'All is well')
 
 def parse_args(args):
     """Parse command line arguments to the program."""
@@ -108,6 +108,8 @@ def parse_args(args):
     parser.add_argument('--interactive', '-i', action='store_true',
                         help='Run interactively (line by line input)')
     parser.add_argument('--files', '-f', nargs='+', default=sorted(glob.glob('ww_data*')))
+    parser.add_argument('--stats', '-s', action='store_true',
+                        help='Show statistics for each file processed.')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose: show each file processed.')
     parser.add_argument('--debug_program', '-D', action='store_true',
@@ -134,16 +136,24 @@ def process_files(args):
     """Process lines in the files given on the command line."""
 
     succeeded = True
+    at_beginning = True
 
     for line in fileinput.input(args.files):
         line = line.rstrip('\n')
 
-        # At the beginning of each file, reset per file state.
+        # At the beginning of each file, reset per file state, and print
+        #    statistics for the previous file.
         if fileinput.isfirstline():
+            if args.stats and not at_beginning:
+                print "  Unique 6-letter combinations: {}".format(good_lines)
+                print "  Unique words: {}".format(good_words)
             last_good_line = ''
             count = 0
-            if args.verbose:
+            good_lines = 0
+            good_words = 0
+            if args.verbose or args.stats:
                 print 'Processing "{}"'.format(fileinput.filename())
+        at_beginning = False
         if count == args.count:
             fileinput.nextfile()
             continue
@@ -165,7 +175,7 @@ def process_files(args):
             fileinput.nextfile()
             continue
 
-        line_good, reason = line_is_good(line, args.debug_program)
+        line_good, num_words, reason = line_is_good(line, args.debug_program)
         if not line_good:
             succeeded = False
             print 'Bad {}.{}({}): "{}"'.format(fileinput.filename(),
@@ -176,6 +186,14 @@ def process_files(args):
                     fileinput.filelineno(), line, last_good_line)
         else:
             last_good_line = line
+            good_lines += 1
+            good_words += num_words
+
+    # Print the stats for the last file.
+    if args.stats and not at_beginning:
+        print "  Unique 6-letter combinations: {}".format(good_lines)
+        print "  Unique words: {}".format(good_words)
+
     if succeeded:
         return 0
     return 1
@@ -193,7 +211,7 @@ if __name__ == '__main__':
 
     if args.interactive:
         for line in get_user_lines('Please type a line -> '):
-            line_good, reason = line_is_good(line, args.debug_program)
+            line_good, num_words, reason = line_is_good(line, args.debug_program)
             if line_good:
                 print 'Good: "{}"'.format(line)
             else:
