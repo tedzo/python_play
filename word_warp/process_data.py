@@ -155,12 +155,14 @@ class Stats(object):
         self.good_words += num_words
         self.histogram[num_words] += 1
 
-    # def show(self, indent):
-    def show(self):
-        print "  Unique 6-letter combinations: {}".format(self.good_lines)
-        print "  Unique words: {}".format(self.good_words)
+    def show(self, indent=''):
+        def iprint(output):
+            print '{}{}'.format(indent, output)
+        iprint('Unique 6-letter combinations: {}'.format(self.good_lines))
+        iprint('Unique words: {}'.format(self.good_words))
+        iprint('Histogram')
         for i in range(1, self.most_words+1):
-            print "  Number of {}-word anagrams: {}".format(i, self.histogram[i])
+            iprint('  {}-word anagrams: {}'.format(i, self.histogram[i]))
 
 
 def process_files(args):
@@ -176,7 +178,7 @@ def process_files(args):
         #    statistics for the previous file.
         if fileinput.isfirstline():
             if args.stats and not at_beginning:
-                my_stats.show()
+                my_stats.show(indent='  ')
             last_good_line = ''
             my_stats = Stats()
             count = 0
@@ -219,7 +221,7 @@ def process_files(args):
 
     # Print the stats for the last file.
     if args.stats and not at_beginning:
-        my_stats.show()
+        my_stats.show(indent='  ')
 
     if succeeded:
         return 0
