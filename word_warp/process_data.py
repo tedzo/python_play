@@ -92,13 +92,13 @@ def line_is_good(line, debug):
     - All the lines in the file should be sorted alphabetically.
     """
     if not line_parses(line, debug):
-        return (False, 0, 'Did not parse.')
+        return (False, 'Did not parse.')
     word_list = get_words(line)
     if debug: print word_list
     if not words_are_anagrams(word_list, debug):
-        return (False, 0, 'Not anagrams')
+        return (False, 'Not anagrams')
     if not words_are_alphabetic(word_list, debug):
-        return (False, 0, 'Not alphabetic')
+        return (False, 'Not alphabetic')
 
     return (True, 'All is well')
 
