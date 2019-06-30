@@ -7,23 +7,22 @@ import process_data as pd
 
 class TestWordWarp(unittest.TestCase):
     """A class for testing the word warp processing implementation"""
-    PARSER_TEST_CASES = [
-        ("Abcdef", True),
-        ("abcdef", False),
-        ("Abcdef,", False),
-        ("Abcdef ", False),
-        ("Xyzzyz, Abcdef", True),
-        ("Xyzzyz, abcdef", False),
-        ("Xyzzyz, Abcdef,", False),
-        ("Xyzzyz,  Abcdef", False),
-        ("Bagged, Capped, Impact, Waylay, Barley, Danger, Fanged", True),
-        ]
 
     # def test_line_parser(self):
     def test_parser(self):
         """Parser"""
-        print "Running tests."
-        for line, is_proper in self.PARSER_TEST_CASES:
+        PARSER_TEST_CASES = [
+            ("Abcdef", True),
+            ("abcdef", False),
+            ("Abcdef,", False),
+            ("Abcdef ", False),
+            ("Xyzzyz, Abcdef", True),
+            ("Xyzzyz, abcdef", False),
+            ("Xyzzyz, Abcdef,", False),
+            ("Xyzzyz,  Abcdef", False),
+            ("Bagged, Capped, Impact, Waylay, Barley, Danger, Fanged", True),
+            ]
+        for line, is_proper in PARSER_TEST_CASES:
             if is_proper:
                 expected = 'Passed'
             else:
@@ -31,6 +30,115 @@ class TestWordWarp(unittest.TestCase):
             debug_string = '"{}" should have {}'.format(line, expected)
             self.assertEqual(pd.line_parses(line, False), is_proper, debug_string)
 
+    def test_get_words(self):
+        """Word Parser"""
+        TEST_CASES = [
+            ("Abcdef", ["abcdef"]),
+            ("bcdefa", ["bcdefa"]),
+            ("Abcdef, Bcdefa", ["abcdef", "bcdefa"]),
+            ("A, Bc", ["a", "bc"]),
+            ("A, B, c", ["a", "b", "c"]),
+            ]
+        for line, expected in TEST_CASES:
+            words = pd.get_words(line)
+            debug_template = '"{}" produced {} instead of {}'
+            debug_string = debug_template.format(line, words, expected)
+            self.assertEqual(expected, words, debug_string)
+
+    def test_anagrams(self):
+        """Anagram checker"""
+        TEST_CASES = [
+            ("Abcdef", True),
+            ("abcdef", True),
+            ("Abcdef, Bcdefa", True),
+            ("Abcdef, Bcdefa", True),
+            ("Aaaaaa, aaaaaa", True),
+            ("Abaaaa, Baaaaa", True),
+            ("Abaaaa, Baaaaa", True),
+            ("Abcdef, Bcdefaa", False),
+            ("Abcdef, Bcdefar", False),
+            ("Abaaaa, Baaaab", False),
+            ("Abcdef, Abcdeg", False),
+            ("aaaaaa, abbbbb", False),
+            ("abcabc, acbaaa", False),
+            ("aabbcc, aaddcc", False),
+            ("aabbcc, bbccaa, ccaabb", True),
+            ("aabbcc, bbccaa, abcabc", True),
+            ("aabbcc, bbccaa, ccaadd", False),
+            ("aabbcc, bbccaa, ccaabbb", False),
+            ]
+        for line, is_proper in TEST_CASES:
+            if is_proper:
+                expected = 'Passed'
+            else:
+                expected = 'Failed'
+            words = pd.get_words(line)
+            debug_string = '"{}" should have {}'.format(line, expected)
+            self.assertEqual(pd.words_are_anagrams(words, False), is_proper, debug_string)
+
+    def test_alphabetic(self):
+        """Alphabetic checker"""
+        TEST_CASES = [
+            ("Abcdef", True),
+            ("abcdef", True),
+            ("A, B", True),
+            ("a, B, c", True),
+            ("A, b, C", True),
+            ("A, C, b", False),
+            ("Abacab, bac", True),
+            ("abacab, BAC", True),
+            ("aaaca, aaaac", False),
+            ("aa, aa, aa", True),
+            ("aa, ab, ac", True),
+            ("aa, ac, ab", False),
+            ]
+        for line, is_proper in TEST_CASES:
+            if is_proper:
+                expected = 'Passed'
+            else:
+                expected = 'Failed'
+            words = pd.get_words(line)
+            debug_string = '"{}" should have {}'.format(line, expected)
+            self.assertEqual(pd.words_are_alphabetic(words, False), is_proper, debug_string)
+
+    def test_line_is_good(self):
+        """line_is_good checker"""
+        GOOD_LINES = [
+            "Action",
+            "Addles, Saddle",
+            "Allure, Laurel",
+            "Chines, Inches, Niches",
+            "Deigns, Design, Signed, Singed",
+            "Esteem",
+            "Evilly, Lively, Vilely",
+            "Macaws",
+            "Paltry, Partly",
+            "Statin, Taints, Titans",
+            "Whiter, Wither, Writhe",
+            "Wintry",
+            ]
+        BAD_LINES = [
+            "WinTry",
+            "wintry",
+            "Wintr",
+            "Wintryd",
+            "Wintry, withal",
+            "Wintry, WithaL",
+            "Wintr, Withal",
+            "Wintry, Witha",
+            "Wintryz, Withal",
+            "Wintry, Withala",
+            "Wintry,Withal",
+            "Wintry, Withal",
+            ]
+        for line in GOOD_LINES:
+            debug_string = '"{}" should have passed.'.format(line)
+            good, reason = pd.line_is_good(line, False)
+            self.assertTrue(good, debug_string)
+        for line in BAD_LINES:
+            debug_string = '"{}" should have failed.'.format(line)
+            good, reason = pd.line_is_good(line, False)
+            self.assertFalse(good, debug_string)
 
 def main():
     """Run tests contained in this module."""
