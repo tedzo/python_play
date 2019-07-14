@@ -192,7 +192,7 @@ def process_files(args):
             count += 1
 
         # Skip blank lines, comment lines and lines that say "Word warp".
-        SKIP_RE = r'^$|^#.*$|^[Ww]ord[  ]*[Ww]arp$'
+        SKIP_RE = r'^$|^#|^[Ww]ord[  ]*[Ww]arp|^Score:|^Rounds:'
         if re.search(SKIP_RE, line):
             if args.verbose: print 'Skipping "{}".'.format(line)
             continue
