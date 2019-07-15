@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Program to process a word warp data file.
 
 This is primarly used as a stand-alone program which validates and helps
@@ -46,7 +46,7 @@ def line_parses(line, debug):
     """
     match = re.search(LINE_RE, line)
     if match:
-        if debug: print match.groups()
+        if debug: print(match.groups())
         return True
     else:
         return False
@@ -94,7 +94,7 @@ def line_is_good(line, debug):
     if not line_parses(line, debug):
         return (False, 'Did not parse.')
     word_list = get_words(line)
-    if debug: print word_list
+    if debug: print(word_list)
     if not words_are_anagrams(word_list, debug):
         return (False, 'Not anagrams')
     if not words_are_alphabetic(word_list, debug):
@@ -131,7 +131,7 @@ def get_user_lines(prompt):
     A blank line of input terminates the generator.
     """
     while True:
-        line = raw_input(prompt).rstrip('\n')
+        line = input(prompt).rstrip('\n')
         if line == '':
             break
         yield line
@@ -157,7 +157,7 @@ class Stats(object):
 
     def show(self, indent=''):
         def iprint(output):
-            print '{}{}'.format(indent, output)
+            print('{}{}'.format(indent, output))
         iprint('Unique 6-letter combinations: {}'.format(self.good_lines))
         iprint('Unique words: {}'.format(self.good_words))
         iprint('Histogram')
@@ -183,7 +183,7 @@ def process_files(args):
             my_stats = Stats()
             count = 0
             if args.verbose or args.stats:
-                print 'Processing "{}"'.format(fileinput.filename())
+                print('Processing "{}"'.format(fileinput.filename()))
         at_beginning = False
         if count == args.count:
             fileinput.nextfile()
@@ -194,27 +194,27 @@ def process_files(args):
         # Skip blank lines, comment lines and lines that say "Word warp".
         SKIP_RE = r'^$|^#|^[Ww]ord[  ]*[Ww]arp|^Score:|^Rounds:'
         if re.search(SKIP_RE, line):
-            if args.verbose: print 'Skipping "{}".'.format(line)
+            if args.verbose: print('Skipping "{}".'.format(line))
             continue
 
         # Quit processing a file after a line starting with 3 dashes or m-dashes.
-        # (Utf-8 encoding for an m-dash is \xe2\x80\x94)
-        END_RE = '^(-{3})|(\xe2\x80\x94){3}.*$'
+        # (Note: m-dash unicode codepoint is U+2014)
+        END_RE = '^(-{3})|—{3}'
         if re.search(END_RE, line):
             if args.verbose:
-                print 'Finishing at {}:"{}".'.format(fileinput.filelineno(), line)
+                print('Finishing at {}:"{}".'.format(fileinput.filelineno(), line))
             fileinput.nextfile()
             continue
 
         line_good, reason = line_is_good(line, args.debug_program)
         if not line_good:
             succeeded = False
-            print 'Bad {}.{}({}): "{}"'.format(fileinput.filename(),
-                    fileinput.filelineno(), reason, line)
+            print('Bad {}.{}({}): "{}"'.format(fileinput.filename(),
+                    fileinput.filelineno(), reason, line))
         elif not line > last_good_line:
             succeeded = False
-            print 'Bad {}.{}: "{}" after "{}"'.format(fileinput.filename(),
-                    fileinput.filelineno(), line, last_good_line)
+            print('Bad {}.{}: "{}" after "{}"'.format(fileinput.filename(),
+                    fileinput.filelineno(), line, last_good_line))
         else:
             last_good_line = line
             my_stats.add_line(line)
@@ -230,7 +230,7 @@ def process_files(args):
 if __name__ == '__main__':
     args = parse_args(sys.argv[1:])
     if args.debug_program or args.quit:
-        print args
+        print(args)
     if args.quit:
         sys.exit(0)
 
@@ -242,8 +242,8 @@ if __name__ == '__main__':
         for line in get_user_lines('Please type a line -> '):
             line_good, reason = line_is_good(line, args.debug_program)
             if line_good:
-                print 'Good: "{}"'.format(line)
+                print('Good: "{}"'.format(line))
             else:
-                print 'Bad ({}): "{}"'.format(reason, line)
+                print('Bad ({}): "{}"'.format(reason, line))
     else:
         sys.exit(process_files(args))
