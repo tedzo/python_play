@@ -9,15 +9,15 @@ class TestWordWarp(unittest.TestCase):
     """A class for testing the word warp processing implementation"""
 
     # def test_line_parser(self):
-    def test_parser(self):
+    def test_line_space_okay(self):
         """Parser"""
         PARSER_TEST_CASES = [
             ("Abcdef", True),
-            ("abcdef", False),
+            ("abcdef", True),
             ("Abcdef,", False),
             ("Abcdef ", False),
             ("Xyzzyz, Abcdef", True),
-            ("Xyzzyz, abcdef", False),
+            ("Xyzzyz, abcdef", True),
             ("Xyzzyz, Abcdef,", False),
             ("Xyzzyz,  Abcdef", False),
             ("Bagged, Capped, Impact, Waylay, Barley, Danger, Fanged", True),
@@ -28,16 +28,37 @@ class TestWordWarp(unittest.TestCase):
             else:
                 expected = 'Failed'
             debug_string = '"{}" should have {}'.format(line, expected)
-            self.assertEqual(pd.line_parses(line, False), is_proper, debug_string)
+            self.assertEqual(pd.line_space_okay(line, False), is_proper, debug_string)
+
+    def test_words_okay(self):
+        """Parser"""
+        PARSER_TEST_CASES = [
+            ("Abcdef", True),
+            ("abcdef", False),
+            ("Abcdef,", False),
+            ("Abcdef ", True),
+            ("Xyzzyz, Abcdef", True),
+            ("Xyzzyz, abcdef", False),
+            ("Xyzzyz, Abcdef,", False),
+            ("Xyzzyz,  Abcdef", True),
+            ("Bagged, Capped, Impact, Waylay, Barley, Danger, Fanged", True),
+            ]
+        for line, is_proper in PARSER_TEST_CASES:
+            if is_proper:
+                expected = 'Passed'
+            else:
+                expected = 'Failed'
+            debug_string = '"{}" should have {}'.format(line, expected)
+            self.assertEqual(pd.words_okay(pd.get_words(line), False), is_proper, debug_string)
 
     def test_get_words(self):
         """Word Parser"""
         TEST_CASES = [
-            ("Abcdef", ["abcdef"]),
+            ("Abcdef", ["Abcdef"]),
             ("bcdefa", ["bcdefa"]),
-            ("Abcdef, Bcdefa", ["abcdef", "bcdefa"]),
-            ("A, Bc", ["a", "bc"]),
-            ("A, B, c", ["a", "b", "c"]),
+            ("Abcdef, Bcdefa", ["Abcdef", "Bcdefa"]),
+            ("A, Bc", ["A", "Bc"]),
+            ("A, B, c", ["A", "B", "c"]),
             ]
         for line, expected in TEST_CASES:
             words = pd.get_words(line)
@@ -72,7 +93,7 @@ class TestWordWarp(unittest.TestCase):
                 expected = 'Passed'
             else:
                 expected = 'Failed'
-            words = pd.get_words(line)
+            words = [word.casefold() for word in pd.get_words(line)]
             debug_string = '"{}" should have {}'.format(line, expected)
             self.assertEqual(pd.words_are_anagrams(words, False), is_proper, debug_string)
 
@@ -97,7 +118,7 @@ class TestWordWarp(unittest.TestCase):
                 expected = 'Passed'
             else:
                 expected = 'Failed'
-            words = pd.get_words(line)
+            words = [word.casefold() for word in pd.get_words(line)]
             debug_string = '"{}" should have {}'.format(line, expected)
             self.assertEqual(pd.words_are_alphabetic(words, False), is_proper, debug_string)
 

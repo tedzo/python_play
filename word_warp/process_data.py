@@ -3,11 +3,13 @@
 
 This is primarly used as a stand-alone program which validates and helps
 debug a word warp (6-letter words) data file.  However, if the module is
-imported, it's functions are useable to perform the same tasks, or
+imported, its functions are useable to perform the same tasks, or
 individual validation steps as desired.
 
 Functions:
-    line_parses(): Checks syntactic validity of a given line.
+    get_words(): Breaks a comma-separated line into words.
+    line_space_okay(): Checks for bad whitespace.
+    words_okay(): Checks a list of words for 6 letters, capitalization.
     words_are_anagrams(): Checks that the words in a line are
         anagrams of each other.
     words_are_alphabetic(): Checks that the words in a line are
@@ -15,7 +17,7 @@ Functions:
     line_is_good(): Checks that a line passes all the above checks.
 
 When invoked as a command-line program, there are 2 modes of operation:
-    Default, or when a list of files to process is specific:
+    Default, or when a list of files to process is specified:
         Each line in the files is checked, as well as a check to make sure
             the lines themselves are in alphabetical order.
     When run interactively: the user is prompted for input and each line
@@ -28,52 +30,46 @@ import readline  # Enables history/editing in raw_input() function.
 import argparse
 import fileinput
 import glob
+import unicodedata
 
 # Regular expressions for general use.
-WORD_RE = r'[A-Z][a-z]{5}'
-LINE_RE = '^({0})(, {0})*$'.format(WORD_RE)
-
-def line_parses(line, debug):
-    """Verify if a line matches the parsing criteria for a word warp line.
-
-    The criteria are:
-    Basic syntax:
-    - A line is composed of 6-letter words.
-    - Each word is capitalized.  Only the first letter should be a capital.
-    - If there is only 1 word, the line is just the 6 letters.
-    - If there are more than 1 word, words are separated by a comma and a
-      space.
-    """
-    match = re.search(LINE_RE, line)
-    if match:
-        if debug: print(match.groups())
-        return True
-    else:
-        return False
-
 def get_words(line):
-    """Given a line that parses, return a list of words in that line."""
-    return [word.lower() for word in line.split(', ')]
+    """Break a line into a list of words.
 
-def words_are_anagrams(word_list, debug):
-    """Return words in list are sorted anagrams of each other."""
-    # Check if all the words are the same length
-    length = len(word_list[0])
-    for cur_len in (len(word) for word in word_list):
-        if cur_len != length:
-            return False
+    Use a comma as a separator.
+    Strip leading and trailing whitespace.
+    """
+    return [word.strip() for word in line.split(',')]
 
-    # Check if all the words contain the same letters
-    letters = sorted(word_list[0])
-    for word in word_list:
-        if letters != sorted(word):
-            return False
-
-    # All the words are the same lenght and have the same letters.
+def line_space_okay(line, debug):
+    """No whitespace at beginning/end and ', ' is word separator"""
+    if line.strip() != line:
+        return False
+    if line.split(', ') != get_words(line):
+        return False
     return True
 
+# The unicode category for a codepoint is a 2-letter code.
+#   'Lu' is Letter, uppercase.
+#   'Ll' is Letter, lowercase.
+# A 6-letter capitalized word looks like this:
+CATEGORY_MATCH = 'Lu' + 'Ll'*5
+
+def categories(s):
+    """Return a string of unicode categories for the given input."""
+    return ''.join(unicodedata.category(ch) for ch in s)
+
+def words_okay(word_list, debug):
+    """Verify if the words in a line are good (6-letters, capitalized)."""
+    return all(categories(word) == CATEGORY_MATCH for word in word_list)
+
+def words_are_anagrams(word_list, debug):
+    """Return whether words in list are anagrams of each other."""
+    letters = sorted(word_list[0])
+    return all(sorted(word) == letters for word in word_list)
+
 def words_are_alphabetic(word_list, debug):
-    """Return whether words in line are sorted alphabetically."""
+    """Return whether words in list are sorted alphabetically."""
     return sorted(word_list) == word_list
 
 def line_is_good(line, debug):
@@ -81,8 +77,7 @@ def line_is_good(line, debug):
 
     The criteria are:
     Basic syntax (line parses):
-    - A line is composed of 6-letter words.
-    - Each word is capitalized.  Only the first letter should be a capital.
+    - A line is composed of capitalized 6-letter words.
     - If there is only 1 word, the line is just the 6 letters.
     - If there are more than 1 words, words are separated by a comma and a
       space.
@@ -91,9 +86,15 @@ def line_is_good(line, debug):
     - All the words in a line should be sorted alphabetically.
     - All the lines in the file should be sorted alphabetically.
     """
-    if not line_parses(line, debug):
-        return (False, 'Did not parse.')
+    if not line_space_okay(line, debug):
+        return (False, 'Bad whitespace.')
+
     word_list = get_words(line)
+    if not words_okay(word_list, debug):
+        if debug: print(word_list)
+        return (False, 'Did not parse.')
+
+    word_list = [word.casefold() for word in get_words(line)]
     if debug: print(word_list)
     if not words_are_anagrams(word_list, debug):
         return (False, 'Not anagrams')
