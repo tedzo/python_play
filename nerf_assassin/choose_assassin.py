@@ -13,7 +13,7 @@ Arguments:
 # vim: set ai sw=4 et:
 
 # import os
-# import sys
+import sys
 import random
 import argparse
 import getpass
@@ -180,6 +180,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('targets', nargs='?')
     parser.add_argument('-p', '--players', default=PLAYERS)
+    parser.add_argument('-n', '--num_targets', default=1, type=int)
     parser.add_argument('-d', '--dry_run', action='store_true')
 
     args = parser.parse_args()
@@ -195,7 +196,14 @@ if __name__ == '__main__':
     # The targets might or might not be in the list of players, but
     # either way, we must know their email addresses
     if args.targets is None:
-        targets = (random.choice(players),)
+        assert(args.num_targets <= len(players) / 2)
+        targets=[]
+        # Would like to use random.choices(), but that doesn't exist in
+        # python 2.7.
+        for i in range(args.num_targets):
+            target = random.choice(players)
+            targets.append(target)
+            players.remove(target)
         print "targets are: {}".format(targets)
     else:
         targets = commastring_to_list(args.targets, capitalize=True)
